@@ -1,2 +1,3 @@
 # learn-go
-Learning Go
+
+This is me learning Go. Woot Woot!
