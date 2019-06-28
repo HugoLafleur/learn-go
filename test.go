@@ -1,38 +1,77 @@
 package main
 
 import (
-  "io"
   "fmt"
+  "net/http"
   "time"
   "bufio"
-  "net/http"
-  "regexp"
-  "bytes"
-  "strings"
-  "strconv"
   "compress/gzip"
+  "strings"
+  "io"
+  "regexp"
+  "strconv"
+  "bytes"
 )
 
- 
-var baseurl string = "http://duproprio.com"
+var baseurl string = "http://url.com"
 var baseuri string = "/search/?hash=/g-re=6/s-pmin=200000/s-pmax=500000/s-bmin=2/s-build=1/s-parent=1/s-filter=forsale/s-days=0/m-pack=house-condo-multiplex/p-con=main/p-ord=date/p-dir=DESC/pa-ge="
 
-var testUrls = []string {
-  "http://duproprio.com/search/?hash=/g-re=6/s-pmin=200000/s-pmax=500000/s-bmin=2/s-build=1/s-parent=1/s-filter=forsale/s-days=0/s-gfpack=1/s-hide-sold=/s-mode=list/m-pack=house-condo-multiplex/m-ty=1-15-13-11-2-4-17-21-9-7-20-10-19-6-5-18-100-97-98-99-3-12-14-52-53-55-56-54/p-con=main/p-ord=date/p-dir=DESC/pa-ge=1/",
-  "http://duproprio.com/search/?hash=/g-re=6/s-pmin=200000/s-pmax=500000/s-bmin=2/s-build=1/s-parent=1/s-filter=forsale/s-days=0/s-gfpack=1/s-hide-sold=/s-mode=list/m-pack=house-condo-multiplex/m-ty=1-15-13-11-2-4-17-21-9-7-20-10-19-6-5-18-100-97-98-99-3-12-14-52-53-55-56-54/p-con=main/p-ord=date/p-dir=DESC/pa-ge=2/",
-  "http://duproprio.com/search/?hash=/g-re=6/s-pmin=200000/s-pmax=500000/s-bmin=2/s-build=1/s-parent=1/s-filter=forsale/s-days=0/s-gfpack=1/s-hide-sold=/s-mode=list/m-pack=house-condo-multiplex/m-ty=1-15-13-11-2-4-17-21-9-7-20-10-19-6-5-18-100-97-98-99-3-12-14-52-53-55-56-54/p-con=main/p-ord=date/p-dir=DESC/pa-ge=3/",
-  "http://duproprio.com/search/?hash=/g-re=6/s-pmin=200000/s-pmax=500000/s-bmin=2/s-build=1/s-parent=1/s-filter=forsale/s-days=0/s-gfpack=1/s-hide-sold=/s-mode=list/m-pack=house-condo-multiplex/m-ty=1-15-13-11-2-4-17-21-9-7-20-10-19-6-5-18-100-97-98-99-3-12-14-52-53-55-56-54/p-con=main/p-ord=date/p-dir=DESC/pa-ge=4/",
-  "http://duproprio.com/search/?hash=/g-re=6/s-pmin=200000/s-pmax=500000/s-bmin=2/s-build=1/s-parent=1/s-filter=forsale/s-days=0/s-gfpack=1/s-hide-sold=/s-mode=list/m-pack=house-condo-multiplex/m-ty=1-15-13-11-2-4-17-21-9-7-20-10-19-6-5-18-100-97-98-99-3-12-14-52-53-55-56-54/p-con=main/p-ord=date/p-dir=DESC/pa-ge=5/",
-  "http://duproprio.com/search/?hash=/g-re=6/s-pmin=200000/s-pmax=500000/s-bmin=2/s-build=1/s-parent=1/s-filter=forsale/s-days=0/s-gfpack=1/s-hide-sold=/s-mode=list/m-pack=house-condo-multiplex/m-ty=1-15-13-11-2-4-17-21-9-7-20-10-19-6-5-18-100-97-98-99-3-12-14-52-53-55-56-54/p-con=main/p-ord=date/p-dir=DESC/pa-ge=6/",
-  "http://duproprio.com/search/?hash=/g-re=6/s-pmin=200000/s-pmax=500000/s-bmin=2/s-build=1/s-parent=1/s-filter=forsale/s-days=0/s-gfpack=1/s-hide-sold=/s-mode=list/m-pack=house-condo-multiplex/m-ty=1-15-13-11-2-4-17-21-9-7-20-10-19-6-5-18-100-97-98-99-3-12-14-52-53-55-56-54/p-con=main/p-ord=date/p-dir=DESC/pa-ge=7/",
-  "http://duproprio.com/search/?hash=/g-re=6/s-pmin=200000/s-pmax=500000/s-bmin=2/s-build=1/s-parent=1/s-filter=forsale/s-days=0/s-gfpack=1/s-hide-sold=/s-mode=list/m-pack=house-condo-multiplex/m-ty=1-15-13-11-2-4-17-21-9-7-20-10-19-6-5-18-100-97-98-99-3-12-14-52-53-55-56-54/p-con=main/p-ord=date/p-dir=DESC/pa-ge=8/",
-
+var urls = []string{
+  "http://url.com/condo-a-vendre-rosemont-petite-patrie-quebec-700071",
+ 
 }
 
 type HttpResponse struct {
   url      string
   response *http.Response
   err      error
+}
+
+type PropertyData struct {
+  living_space    string
+  address         string
+  neighborhood    string
+  asking_price    string
+  n_rooms         string
+  n_floors        string
+  on_floor        string
+  rights          string
+  ptype           string
+}
+
+func asyncHttpGets(urls []string) []*HttpResponse {
+  ch := make(chan *HttpResponse)
+  responses := []*HttpResponse{}
+  client := http.Client{}
+  for _, url := range urls {
+      go func(url string) {
+          fmt.Printf("Fetching %s \n", url)
+          request, err := http.NewRequest("GET", url, nil)
+          request.Header.Add("Accept-Encoding", "gzip, deflate")
+          resp, err := client.Do(request)
+          ch <- &HttpResponse{url, resp, err}
+          if err != nil && resp != nil && resp.StatusCode == http.StatusOK {
+              resp.Body.Close()
+          }
+      }(url)
+  }
+  for {
+      select {
+      case r := <-ch:
+          fmt.Printf("%s was fetched\n", r.url)
+          if r.err != nil {
+              fmt.Println("with an error", r.err)
+          }
+          responses = append(responses, r)
+          if len(responses) == len(urls) {
+            // fmt.Printf("Got everything!\n")
+            return responses
+          }
+      case <-time.After(50 * time.Millisecond):
+          fmt.Printf(".")
+      }
+  }
+  return responses
 }
 
 func getPageUrls() []string {
@@ -69,99 +108,131 @@ func getPageUrls() []string {
   return pageUrls
 }
 
-// func getSearchResultsCount() int {
-//   re_results := regexp.MustCompile("<strong id=\"searchResultsCounter\">[0-9]\\w+</strong>")
-//   client := http.Client{}
-//   request, err := http.NewRequest("GET", url, nil)
-//   request.Header.Add("Accept-Encoding", "gzip, deflate")
-//   resp, err := client.Do(request)
-  
-// }
 
-func getPropertyUrls(urls []string) []string {
-  var propertyUrls []string
-  var propertyCount int = 0
-  var reader io.ReadCloser
-
-  ch := make(chan string)
-  client := http.Client{}
-  re_url := regexp.MustCompile("\"\\/.+\" title.+showimage")
-  re_results := regexp.MustCompile("<strong id=\"searchResultsCounter\">[0-9]\\w+</strong>")
-
-  for _, url := range urls {
-    go func(url string) {
-      request, err := http.NewRequest("GET", url, nil)
-      request.Header.Add("Accept-Encoding", "gzip, deflate")
-      resp, err := client.Do(request)
-      
-      if err == nil && resp != nil && resp.StatusCode == http.StatusOK {
-        // fmt.Println(resp.Header.Get("Content-Encoding")) // DEBUG
-        switch resp.Header.Get("Content-Encoding") {
-        case "gzip":
-          reader, err = gzip.NewReader(resp.Body)
-          defer reader.Close()
-        default:
-          reader = resp.Body
-        }
-        if err == nil {
-            scanner := bufio.NewScanner(reader)
-            scanner.Split(bufio.ScanLines)
-            for scanner.Scan() {
-              switch {
-              case re_results.FindString(scanner.Text()) != "":
-                if propertyCount == 0 {
-                  re := regexp.MustCompile("[0-9]\\w+")
-                  propertyCount, err = strconv.Atoi(re.FindString(re_results.FindString(scanner.Text())))
-                }
-              case re_url.FindString(scanner.Text()) != "":
-                var buf bytes.Buffer
-                buf.WriteString(baseurl)
-                buf.WriteString(strings.Split(scanner.Text(), "\"")[1])
-                ch <- buf.String()
-                // ch <- url // DEBUG
-                // fmt.Println(buf.String()) // DEBUG
-              }
-            }
-          }
-          // close(ch)
-          resp.Body.Close()
-        }
-    }(url)
+func getPropertyData(results []*HttpResponse) []*PropertyData {
+  channel := make(chan *PropertyData)
+  p_data := []*PropertyData{}
+  for _, result := range results {
+    go func(result *HttpResponse){
+      address, living_space, neighborhood, asking_price, n_rooms, n_floors, on_floor, rights := extractPropertyInfo(result.response.Body)
+      ptype := strings.Split(strings.Split(result.url,"-a-vendre-")[0], "http://url.com/")[1]
+      channel <- &PropertyData{living_space, address, neighborhood, asking_price, n_rooms, n_floors, on_floor, rights, ptype }
+      result.response.Body.Close()
+    }(result)
   }
-  // FIRST APPROACH:
-  fmt.Printf("Getting property URLs")
+  // fmt.Printf("Extracting Property Data...\n")
   for {
-    select {
-    case r := <-ch:
-        propertyUrls = append(propertyUrls, r)
-        // TODO: Fix Limitation, does not take into account changing number of items per page
-        // Also, may fail if issue with regex
-        // if len(propertyUrls) == propertyCount - 1 {
-        if len(propertyUrls) == 1540 {
-          return propertyUrls
+      select {
+      case r := <- channel:
+          p_data = append(p_data, r)
+          if len(p_data) == len(results) {
+              return p_data
+          }
+      case <-time.After(100 * time.Millisecond):
+          // fmt.Printf(".")
+      }
+  }
+  return p_data
+}
+
+func extractPropertyInfo(body io.Reader) (string, string, string, string, string, string, string, string) {
+
+  // TODO: 
+  // Stats prix: min, max, mediane, moyenne
+
+  address := "address"
+  living_space := "living_space"
+  neighborhood := "neighborhood"
+  asking_price := "asking_price"
+  n_rooms := "n_rooms"
+  n_floors := "n_floors"
+  on_floor := "on_floor"
+  rights := "rights"
+  reader, err := gzip.NewReader(body)
+  scanner := bufio.NewScanner(reader)
+  if err == nil {
+    scanner.Split(bufio.ScanLines)
+    for scanner.Scan() {
+      switch {
+      case strings.Contains(scanner.Text(), "<title>"):
+        fmt.Println(scanner.Text())
+      //   if strings.Contains(scanner.Text(), "vendu") {
+      //     address = "Vendu"
+      //   } else {
+      //     address = strings.Split(scanner.Text(),", ")[1]
+      //     address = strings.Replace(address,";","_",-1)
+      //     address = strings.Replace(address,"&eacute_","e",-1)
+      //     address = strings.Replace(address,"&egrave_","e",-1)
+      //     address = strings.Replace(address,"&frac12_","1/2",-1)
+      //     address = strings.Replace(address,"&#039_","'",-1)
+      //     address = strings.Replace(address,"&ocirc_","o",-1)
+      //   }
+      case strings.Contains(scanner.Text(), "Aire habitable"):
+        re := regexp.MustCompile("[0-9]\\s?[0-9]+\\.?[0-9]+.pi")
+        living_space = strings.Replace(strings.Split(scanner.Text(), "</strong> ")[1], "</li>", "", -1)
+        fmt.Println(living_space)  
+        if !strings.Contains(living_space,"x") {
+          living_space = strings.Replace(strings.TrimSpace(strings.Replace(re.FindString(living_space),"pi","",-1))," ","",-1)
+          living_space = strings.Replace(living_space,".",",",-1)
         }
-    case <-time.After(50 * time.Millisecond):
-        fmt.Printf(".")
+      case strings.Contains(scanner.Text(), "addressLocality"):
+        // neighborhood = strings.Replace(strings.Split(scanner.Text(), " content=\"")[1], "\" />", "", -1)
+        neighborhood = "neighborhood" // DEBUG
+      case strings.Contains(scanner.Text(), " <li><strong>Prix demand"):
+        // asking_price = strings.Replace(strings.Split(scanner.Text(), "</strong> ")[1], "</li>", "", -1)
+        // asking_price = strings.Replace(asking_price, " ", "", -1)
+        // asking_price = strings.Replace(asking_price, "$", "", -1)
+        asking_price = "asking_price" // DEBUG
+      case strings.Contains(scanner.Text(), "Nombre de chambres"):
+        // n_rooms = strings.Replace(strings.Split(scanner.Text(), "</strong> ")[1], "</li>", "", -1)
+        n_rooms = "n_rooms" // DEBUG
+      case strings.Contains(scanner.Text(), "tages (s-sol exclu)"):
+        // n_floors = strings.Replace(strings.Split(scanner.Text(), "</strong> ")[1], "</li>", "", -1)
+        n_floors = "n_rooms" // DEBUG
+      case strings.Contains(scanner.Text(), " (si condo) "):
+        // on_floor = strings.Replace(strings.Split(scanner.Text(), "</strong> ")[1], "</li>", "", -1)
+        on_floor = "on_floor" // DEBUG
+      case strings.Contains(scanner.Text(), "  <li><strong>Droit de propri"):
+        // rights = strings.Replace(strings.Split(scanner.Text(), "</strong> ")[1], "</li>", "", -1)
+        rights = "on_floor" // DEBUG
+      }
     }
   }
-  // SECOND APPROACH
-  // for r := range ch {
-  //   fmt.Printf("Got %s\n", r)
-  //     // propertyUrls = append(propertyUrls, r)
-  // }
-  fmt.Printf("%d properties found", propertyCount)
-  return propertyUrls
+  return address, living_space, neighborhood, asking_price, n_rooms, n_floors, on_floor, rights
 }
 
 func main() {
-  pageUrls := getPageUrls()
-  // for _,url := range getPageUrls() {
-  //    fmt.Println(url)
-  //  }
-  for _,url := range getPropertyUrls(pageUrls) {
-    fmt.Println(url)
-  }
-  // for _,url := range getPropertyUrls(testUrls) {
-  //   fmt.Println(url)
+  // TODO:  1. Get number of pages, 4 lines before the line with keyword "Suivants"
+  //        2. Generate page urls
+  //        3. Contact page urls to get property urls
+  //           => Pattern is "^                    <a href="|grep title|grep itemprop|awk 'BEGIN {FS="\""} {print $2}'
+  results := asyncHttpGets(urls)
+  propertyData := getPropertyData(results)
+  // n_pages := getNumberOfPages()
+  fmt.Printf("Number of pages: %d", getNumberOfPages())
+
+
+
+  fmt.Printf("%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
+      "Quartier",
+      "Adresse",
+      "Aire Habitable",
+      "Prix Demande",
+      "Nombre de chambres",
+      "Nombre d'etages",
+      "Situe sur quel etage",
+      "Acces a la propriete",
+      "Type de propriete")
+  for _, property := range propertyData {
+    fmt.Printf("%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
+      property.neighborhood,
+      property.address,
+      property.living_space,
+      property.asking_price,
+      property.n_rooms,
+      property.n_floors,
+      property.on_floor,
+      property.rights,
+      property.ptype)
   // }
 }

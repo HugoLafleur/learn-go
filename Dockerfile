@@ -1,7 +1,7 @@
 FROM golang:1.5.3
 
-ADD . /duproprio
+ADD . /image
 
-WORKDIR /duproprio
+WORKDIR /image
 
 ENTRYPOINT ["go","run"]
